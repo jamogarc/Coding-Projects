@@ -272,7 +272,7 @@ h1, h2, h3 {
 
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(281px, 1fr));
     gap: 3rem;
     margin-top: 3rem;
 }
