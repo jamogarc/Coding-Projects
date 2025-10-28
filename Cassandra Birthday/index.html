@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Udon Under the Willow</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 50%, #90EE90 100%);
+            font-family: 'Arial', sans-serif;
+        }
+
+        canvas {
+            border: 3px solid #8B4513;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 40%, #90EE90 70%, #228B22 100%);
+        }
+
+        #replayBtn {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        #replayBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.4);
+        }
+
+        #replayBtn:active {
+            transform: translateY(0);
+        }
+
+        #replayBtn.show {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="animationCanvas" width="800" height="600"></canvas>
+    <button id="replayBtn">Replay Animation</button>
+
+    <script>
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const replayBtn = document.getElementById('replayBtn');
+
+        let animationFrame = 0;
+        let animationId;
+        let isAnimating = true;
+
+        // Animation phases
+        const PHASES = {
+            WILLOW_GROW: 120,
+            CHARACTERS_APPEAR: 180,
+            BOWL_OFFER: 240,
+            BIRTHDAY_MESSAGE: 340,
+            COMPLETE: 400
+        };
+
+        // Helper function to draw a person
+        function drawPerson(x, y, scale, armAngle = 0, holdingBowl = false) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            // Head
+            ctx.fillStyle = '#D2A679'; // tan skin
+            ctx.beginPath();
+            ctx.arc(0, -60, 25, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair
+            ctx.fillStyle = '#3B2414';
+            ctx.beginPath();
+            ctx.arc(0, -65, 26, Math.PI, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-8, -62, 3, 0, Math.PI * 2);
+            ctx.arc(8, -62, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Smile
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, -55, 12, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+
+            // Body
+            ctx.fillStyle = '#4A90E2';
+            ctx.fillRect(-20, -35, 40, 50);
+
+            // Arms
+            ctx.strokeStyle = '#D2A679';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+
+            // Left arm
+            ctx.beginPath();
+            ctx.moveTo(-20, -30);
+            ctx.lineTo(-35, -10 + Math.sin(armAngle) * 5);
+            ctx.stroke();
+
+            // Right arm (extended if holding bowl)
+            ctx.beginPath();
+            ctx.moveTo(20, -30);
+            if (holdingBowl) {
+                ctx.lineTo(50, -20);
+            } else {
+                ctx.lineTo(35, -10 - Math.sin(armAngle) * 5);
+            }
+            ctx.stroke();
+
+            // Legs
+            ctx.fillStyle = '#2C5F8D';
+            ctx.fillRect(-18, 15, 15, 35);
+            ctx.fillRect(3, 15, 15, 35);
+
+            // Feet
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-18, 50, 18, 8);
+            ctx.fillRect(3, 50, 18, 8);
+
+            ctx.restore();
+        }
+
+        // Helper function to draw girlfriend
+        function drawGirlfriend(x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            // Head
+            ctx.fillStyle = '#D2A679';
+            ctx.beginPath();
+            ctx.arc(0, -60, 25, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair (longer)
+            ctx.fillStyle = '#5C4033';
+            ctx.beginPath();
+            ctx.arc(0, -65, 26, Math.PI, Math.PI * 2);
+            ctx.fill();
+            // Hair sides
+            ctx.fillRect(-26, -65, 10, 40);
+            ctx.fillRect(16, -65, 10, 40);
+
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-8, -62, 3, 0, Math.PI * 2);
+            ctx.arc(8, -62, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Smile
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, -55, 12, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+
+            // Body (dress)
+            ctx.fillStyle = '#E91E63';
+            ctx.beginPath();
+            ctx.moveTo(-20, -35);
+            ctx.lineTo(-30, 15);
+            ctx.lineTo(30, 15);
+            ctx.lineTo(20, -35);
+            ctx.closePath();
+            ctx.fill();
+
+            // Arms
+            ctx.strokeStyle = '#D2A679';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(-20, -30);
+            ctx.lineTo(-25, -5);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(20, -30);
+            ctx.lineTo(25, -5);
+            ctx.stroke();
+
+            // Legs
+            ctx.fillStyle = '#D2A679';
+            ctx.fillRect(-15, 15, 12, 35);
+            ctx.fillRect(3, 15, 12, 35);
+
+            // Feet
+            ctx.fillStyle = '#C71585';
+            ctx.fillRect(-15, 50, 15, 8);
+            ctx.fillRect(3, 50, 15, 8);
+
+            ctx.restore();
+        }
+
+        // Helper function to draw udon bowl - 3D PERSPECTIVE - HORIZONTAL OVAL
+        function drawUdonBowl(x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            // 3D BROWN BOWL - wider horizontally, viewed from slight angle
+            // Bowl base (bottom) - horizontal oval
+            ctx.fillStyle = '#5C3D2E';
+            ctx.beginPath();
+            ctx.ellipse(0, 8, 28, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bowl sides (3D curved) - wider shape
+            ctx.fillStyle = '#704B3A';
+            ctx.beginPath();
+            ctx.moveTo(-28, 8);
+            ctx.bezierCurveTo(-26, 2, -24, -4, -22, -8);
+            ctx.arc(0, -8, 22, Math.PI, 0);
+            ctx.bezierCurveTo(24, -4, 26, 2, 28, 8);
+            ctx.arc(0, 8, 28, 0, Math.PI);
+            ctx.closePath();
+            ctx.fill();
+
+            // Bowl inner shadow (left side)
+            ctx.fillStyle = 'rgba(60, 40, 30, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(-28, 8);
+            ctx.bezierCurveTo(-26, 2, -24, -4, -22, -8);
+            ctx.lineTo(-24, -6);
+            ctx.bezierCurveTo(-25, 0, -26, 4, -27, 7);
+            ctx.closePath();
+            ctx.fill();
+
+            // Bowl rim highlight - horizontal oval
+            ctx.fillStyle = '#8B6F47';
+            ctx.beginPath();
+            ctx.ellipse(0, -8, 23, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#704B3A';
+            ctx.beginPath();
+            ctx.ellipse(0, -8, 21, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // BROTH inside bowl - horizontal oval
+            ctx.fillStyle = '#D4A76A';
+            ctx.beginPath();
+            ctx.ellipse(0, -6, 20, 3.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Broth depth/shadow
+            ctx.fillStyle = 'rgba(180, 130, 70, 0.5)';
+            ctx.beginPath();
+            ctx.ellipse(0, -5, 19, 3, 0, 0, Math.PI);
+            ctx.fill();
+
+            // THICK WHITE UDON NOODLES - very clear, contained in bowl
+            // Draw them as thick strokes that look 3D
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 2;
+            ctx.shadowOffsetY = 1;
+
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 7;
+            ctx.lineCap = 'round';
+
+            // Noodle 1 - top strand, contained
+            ctx.beginPath();
+            ctx.moveTo(-16, -7);
+            ctx.bezierCurveTo(-8, -8, 0, -6, 8, -7);
+            ctx.bezierCurveTo(12, -8, 15, -6, 17, -7);
+            ctx.stroke();
+
+            // Noodle 2 - middle crossing strand
+            ctx.beginPath();
+            ctx.moveTo(-17, -4);
+            ctx.bezierCurveTo(-9, -5, 0, -3, 9, -5);
+            ctx.bezierCurveTo(13, -6, 16, -4, 18, -5);
+            ctx.stroke();
+
+            // Noodle 3 - center strand
+            ctx.beginPath();
+            ctx.moveTo(-15, -1);
+            ctx.bezierCurveTo(-7, -2, 0, 0, 7, -2);
+            ctx.bezierCurveTo(11, -3, 14, -1, 16, -2);
+            ctx.stroke();
+
+            // Noodle 4 - lower strand
+            ctx.beginPath();
+            ctx.moveTo(-16, 2);
+            ctx.bezierCurveTo(-8, 1, 0, 3, 8, 1);
+            ctx.bezierCurveTo(12, 0, 15, 2, 17, 1);
+            ctx.stroke();
+
+            // Bright white highlights on noodles for extra clarity
+            ctx.shadowColor = 'transparent';
+            ctx.strokeStyle = '#FFFFFE';
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.moveTo(-16, -7);
+            ctx.bezierCurveTo(-8, -8, 0, -6, 8, -7);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-17, -4);
+            ctx.bezierCurveTo(-9, -5, 0, -3, 9, -5);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-15, -1);
+            ctx.bezierCurveTo(-7, -2, 0, 0, 7, -2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-16, 2);
+            ctx.bezierCurveTo(-8, 1, 0, 3, 8, 1);
+            ctx.stroke();
+
+            // Green onion slices on top - spread wider
+            ctx.fillStyle = '#5DB075';
+            ctx.strokeStyle = '#4A8C5E';
+            ctx.lineWidth = 1;
+
+            // Draw circular onion slices
+            ctx.beginPath();
+            ctx.arc(-10, -6, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(-2, -7, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(8, -5, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(14, -4, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(4, -2, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Onion hollow centers
+            ctx.fillStyle = '#A8D8B9';
+            ctx.beginPath();
+            ctx.arc(-10, -6, 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(-2, -7, 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(8, -5, 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(14, -4, 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(4, -2, 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // HOT STEAM rising
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+
+            for (let i = 0; i < 4; i++) {
+                const xOff = (i - 1.5) * 10;
+                ctx.beginPath();
+                ctx.moveTo(xOff, -12);
+                ctx.bezierCurveTo(xOff - 4, -22, xOff + 4, -30, xOff - 2, -38);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // Helper function to draw speech bubble
+        function drawSpeechBubble(x, y, text, scale) {
+            ctx.save();
+            ctx.globalAlpha = scale;
+
+            // Bubble dimensions - positioned above the character
+            const bubbleWidth = 240;
+            const bubbleHeight = 70;
+            const bubbleX = x - bubbleWidth / 2 - 20;
+            const bubbleY = y - 200; // Higher up to avoid cutoff
+            const cornerRadius = 12;
+
+            // Draw bubble background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.moveTo(bubbleX + cornerRadius, bubbleY);
+            ctx.lineTo(bubbleX + bubbleWidth - cornerRadius, bubbleY);
+            ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY, bubbleX + bubbleWidth, bubbleY + cornerRadius);
+            ctx.lineTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight - cornerRadius);
+            ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight, bubbleX + bubbleWidth - cornerRadius, bubbleY + bubbleHeight);
+            ctx.lineTo(bubbleX + cornerRadius, bubbleY + bubbleHeight);
+            ctx.quadraticCurveTo(bubbleX, bubbleY + bubbleHeight, bubbleX, bubbleY + bubbleHeight - cornerRadius);
+            ctx.lineTo(bubbleX, bubbleY + cornerRadius);
+            ctx.quadraticCurveTo(bubbleX, bubbleY, bubbleX + cornerRadius, bubbleY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Pointer tail pointing to person's head
+            ctx.beginPath();
+            ctx.moveTo(bubbleX + bubbleWidth / 2 + 10, bubbleY + bubbleHeight);
+            ctx.lineTo(bubbleX + bubbleWidth / 2 + 20, bubbleY + bubbleHeight + 35);
+            ctx.lineTo(bubbleX + bubbleWidth / 2 + 25, bubbleY + bubbleHeight);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Text inside bubble
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+
+            // Split text into lines
+            const line1 = "Happy Birthday Beautiful!";
+            const line2 = "Here is a bowl of udon";
+
+            ctx.fillText(line1, bubbleX + bubbleWidth / 2, bubbleY + 28);
+            ctx.fillText(line2, bubbleX + bubbleWidth / 2, bubbleY + 50);
+
+            ctx.restore();
+        }
+
+        // Helper function to draw willow tree
+        function drawWillowTree(x, y, growth) {
+            // Trunk - organic, tapered shape
+            const trunkGradient = ctx.createLinearGradient(x - 30, y, x + 30, y);
+            trunkGradient.addColorStop(0, '#5A3A1A');
+            trunkGradient.addColorStop(0.5, '#6B4423');
+            trunkGradient.addColorStop(1, '#4A2F15');
+
+            ctx.fillStyle = trunkGradient;
+            ctx.beginPath();
+            ctx.moveTo(x - 28, y);
+            ctx.lineTo(x - 18, y - growth * 180);
+            ctx.lineTo(x + 18, y - growth * 180);
+            ctx.lineTo(x + 28, y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Trunk bark texture
+            ctx.strokeStyle = 'rgba(40, 25, 15, 0.4)';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 8; i++) {
+                const xPos = x - 22 + i * 6;
+                ctx.beginPath();
+                ctx.moveTo(xPos, y - growth * 30);
+                ctx.lineTo(xPos + 2, y - growth * 170);
+                ctx.stroke();
+            }
+
+            // Main structural branches from trunk
+            ctx.strokeStyle = '#5A3A1A';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+
+            const structuralBranches = [
+                { angle: -0.7, length: 55, yStart: 160 },
+                { angle: -0.4, length: 65, yStart: 165 },
+                { angle: -0.15, length: 70, yStart: 170 },
+                { angle: 0.15, length: 70, yStart: 170 },
+                { angle: 0.4, length: 65, yStart: 165 },
+                { angle: 0.7, length: 55, yStart: 160 }
+            ];
+
+            structuralBranches.forEach(branch => {
+                ctx.beginPath();
+                ctx.moveTo(x, y - growth * branch.yStart);
+                const endX = x + Math.sin(branch.angle) * branch.length * growth;
+                const endY = y - growth * (branch.yStart - 15);
+                ctx.quadraticCurveTo(
+                    x + Math.sin(branch.angle) * branch.length * 0.4 * growth,
+                    y - growth * (branch.yStart - 5),
+                    endX,
+                    endY
+                );
+                ctx.stroke();
+            });
+
+            // Canopy mass - layered for depth
+            const canopyLayers = [
+                { y: -160, rx: 95, ry: 50, alpha: 0.15 },
+                { y: -150, rx: 115, ry: 60, alpha: 0.2 },
+                { y: -135, rx: 125, ry: 65, alpha: 0.25 }
+            ];
+
+            canopyLayers.forEach(layer => {
+                const gradient = ctx.createRadialGradient(x, y + layer.y * growth, 0, x, y + layer.y * growth, layer.rx * growth);
+                gradient.addColorStop(0, `rgba(95, 160, 95, ${layer.alpha * growth})`);
+                gradient.addColorStop(1, `rgba(70, 130, 70, ${layer.alpha * growth * 0.5})`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.ellipse(x, y + layer.y * growth, layer.rx * growth, layer.ry * growth, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Weeping willow cascading strands - REFINED
+            const numStrands = 45;
+            for (let i = 0; i < numStrands; i++) {
+                const normalizedPos = (i / (numStrands - 1)) - 0.5;
+                const spreadX = normalizedPos * 220;
+
+                // Dome-shaped distribution
+                const domeHeight = Math.cos(normalizedPos * Math.PI * 0.9) * 40;
+                const startY = y - growth * (150 + domeHeight);
+
+                // Variable strand length
+                const baseLength = 90;
+                const edgeExtension = Math.abs(normalizedPos) * 50;
+                const strandLength = baseLength + edgeExtension;
+
+                // Subtle sway variation
+                const sway = Math.sin(i * 1.2) * 12;
+
+                // Main strand - thin and graceful
+                const strandAlpha = 0.5 + Math.cos(normalizedPos * Math.PI) * 0.3;
+                ctx.strokeStyle = `rgba(75, 110, 60, ${strandAlpha * growth})`;
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.moveTo(x + spreadX, startY);
+                ctx.bezierCurveTo(
+                    x + spreadX + sway * 0.4, startY + strandLength * 0.25 * growth,
+                    x + spreadX - sway * 0.4, startY + strandLength * 0.65 * growth,
+                    x + spreadX + sway * 0.6, startY + strandLength * growth
+                );
+                ctx.stroke();
+
+                // Leaves on strands - delicate and numerous
+                ctx.fillStyle = `rgba(90, 165, 90, ${growth * 0.85})`;
+
+                const numLeaves = 15;
+                for (let j = 0; j < numLeaves; j++) {
+                    const t = j / numLeaves;
+
+                    // Approximate position along bezier curve
+                    const leafY = startY + (strandLength * growth * t);
+                    const leafSwayOffset = (Math.sin(t * Math.PI) * sway * 0.5);
+                    const leafX = x + spreadX + leafSwayOffset;
+
+                    // Tiny leaf cluster
+                    ctx.save();
+                    ctx.translate(leafX, leafY);
+                    ctx.rotate(Math.PI / 4 + t * 0.3);
+
+                    // Draw 2-3 overlapping mini leaves per cluster
+                    for (let k = 0; k < 2; k++) {
+                        ctx.beginPath();
+                        ctx.ellipse(k * 2 - 1, 0, 1.2, 3.5, k * 0.3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+
+                // Lighter highlight strands (every 3rd strand)
+                if (i % 3 === 0) {
+                    ctx.strokeStyle = `rgba(110, 180, 110, ${growth * 0.4})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + spreadX + 2, startY);
+                    ctx.bezierCurveTo(
+                        x + spreadX + sway * 0.4 + 2, startY + strandLength * 0.25 * growth,
+                        x + spreadX - sway * 0.4 + 2, startY + strandLength * 0.65 * growth,
+                        x + spreadX + sway * 0.6 + 2, startY + strandLength * growth
+                    );
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Main animation function
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background gradient (already in CSS, but we'll add ground)
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, 450, canvas.width, 150);
+
+            // Phase 1: Willow tree grows
+            if (animationFrame <= PHASES.WILLOW_GROW) {
+                const growth = Math.min(animationFrame / PHASES.WILLOW_GROW, 1);
+                const easeGrowth = 1 - Math.pow(1 - growth, 3); // ease out cubic
+                drawWillowTree(400, 450, easeGrowth);
+            } else {
+                drawWillowTree(400, 450, 1);
+
+                // Phase 2: Characters appear
+                if (animationFrame <= PHASES.CHARACTERS_APPEAR) {
+                    const appearProgress = (animationFrame - PHASES.WILLOW_GROW) / (PHASES.CHARACTERS_APPEAR - PHASES.WILLOW_GROW);
+                    const scale = Math.min(appearProgress * 1.5, 1);
+                    const yOffset = (1 - scale) * 100;
+
+                    drawPerson(250, 400 + yOffset, scale);
+                    drawGirlfriend(550, 400 + yOffset, scale);
+                } else {
+                    // Phase 3: Offering the bowl
+                    const offerProgress = Math.min((animationFrame - PHASES.CHARACTERS_APPEAR) / (PHASES.BOWL_OFFER - PHASES.CHARACTERS_APPEAR), 1);
+                    const bowlX = 250 + (300 * offerProgress * 0.6);
+                    const armProgress = offerProgress;
+
+                    drawPerson(250, 400, 1, animationFrame * 0.05, offerProgress > 0.3);
+                    drawGirlfriend(550, 400, 1);
+
+                    // Speech bubble appears early in this phase
+                    if (offerProgress > 0.1) {
+                        const bubbleScale = Math.min((offerProgress - 0.1) / 0.2, 1);
+                        drawSpeechBubble(250, 400, "Happy Birthday Beautiful! Here is a bowl of udon", bubbleScale);
+                    }
+
+                    if (offerProgress > 0.3) {
+                        drawUdonBowl(bowlX + 50, 380 - Math.sin(offerProgress * Math.PI) * 20, 1);
+                    }
+
+                    // Show hearts when bowl is given
+                    if (animationFrame > PHASES.BOWL_OFFER && animationFrame <= PHASES.BIRTHDAY_MESSAGE) {
+                        const heartProgress = (animationFrame - PHASES.BOWL_OFFER) / (PHASES.BIRTHDAY_MESSAGE - PHASES.BOWL_OFFER);
+
+                        for (let i = 0; i < 5; i++) {
+                            const heartY = 350 - heartProgress * 100 - i * 30;
+                            const heartX = 400 + Math.sin(heartProgress * Math.PI * 2 + i) * 40;
+                            const heartAlpha = Math.max(0, 1 - heartProgress);
+
+                            ctx.save();
+                            ctx.globalAlpha = heartAlpha;
+                            ctx.fillStyle = '#FF1493';
+                            ctx.font = '30px Arial';
+                            ctx.fillText('♥', heartX, heartY);
+                            ctx.restore();
+                        }
+                    }
+
+                    // Phase 4: Birthday message scene
+                    if (animationFrame > PHASES.BIRTHDAY_MESSAGE) {
+                        // Fade out previous scene
+                        const fadeProgress = Math.min((animationFrame - PHASES.BIRTHDAY_MESSAGE) / 30, 1);
+
+                        if (fadeProgress < 1) {
+                            ctx.save();
+                            ctx.globalAlpha = 1 - fadeProgress;
+                            // Previous scene is still drawn above
+                            ctx.restore();
+                        }
+
+                        // Draw new birthday message scene
+                        ctx.save();
+                        ctx.globalAlpha = fadeProgress;
+
+                        // Clear with white background
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Draw large birthday message
+                        const messageProgress = Math.max(0, (animationFrame - PHASES.BIRTHDAY_MESSAGE - 30) / 40);
+                        const messageScale = Math.min(messageProgress, 1);
+
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+
+                        // "Happy 20th Birthday!"
+                        ctx.save();
+                        ctx.translate(400, 250);
+                        ctx.scale(messageScale, messageScale);
+
+                        ctx.fillStyle = '#FF1493';
+                        ctx.font = 'bold 60px Arial';
+                        ctx.fillText('Happy 20th Birthday!', 0, 0);
+
+                        ctx.restore();
+
+                        // "I love you!"
+                        if (messageProgress > 0.5) {
+                            const loveScale = Math.min((messageProgress - 0.5) * 2, 1);
+                            ctx.save();
+                            ctx.translate(400, 350);
+                            ctx.scale(loveScale, loveScale);
+
+                            ctx.fillStyle = '#FF6B9D';
+                            ctx.font = 'bold 50px Arial';
+                            ctx.fillText('I love you!', 0, 0);
+
+                            ctx.restore();
+                        }
+
+                        // Floating hearts around the message
+                        if (messageProgress > 0.3) {
+                            const heartAnim = (animationFrame - PHASES.BIRTHDAY_MESSAGE - 30) / 60;
+
+                            for (let i = 0; i < 8; i++) {
+                                const angle = (i / 8) * Math.PI * 2;
+                                const distance = 200 + Math.sin(heartAnim * 2 + i) * 20;
+                                const heartX = 400 + Math.cos(angle) * distance;
+                                const heartY = 300 + Math.sin(angle) * distance;
+                                const heartSize = 30 + Math.sin(heartAnim * 3 + i) * 5;
+
+                                ctx.fillStyle = '#FF1493';
+                                ctx.font = heartSize + 'px Arial';
+                                ctx.fillText('♥', heartX, heartY);
+                            }
+                        }
+
+                        ctx.restore();
+                    }
+                }
+            }
+
+            // Continue animation or show replay button
+            if (animationFrame < PHASES.COMPLETE && isAnimating) {
+                animationFrame++;
+                animationId = requestAnimationFrame(animate);
+            } else if (animationFrame >= PHASES.COMPLETE && isAnimating) {
+                replayBtn.classList.add('show');
+                isAnimating = false;
+            }
+        }
+
+        // Replay button functionality
+        replayBtn.addEventListener('click', () => {
+            animationFrame = 0;
+            isAnimating = true;
+            replayBtn.classList.remove('show');
+            cancelAnimationFrame(animationId);
+            animate();
+        });
+
+        // Start the animation
+        animate();
+    </script>
+</body>
+</html>

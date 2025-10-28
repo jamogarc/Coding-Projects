@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy 20th Birthday Cassandra!</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #87CEEB;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .restart-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px solid #333;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .restart-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .restart-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <button class="restart-btn" onclick="restartAnimation()">↻ Restart</button>
+
+    <script>
+        let animState = {
+            scene: 1,
+            time: 0,
+            udonProgress: 0,
+            speechAlpha: 0,
+            messageScale: 0,
+            hearts: [],
+            particles: []
+        };
+
+        // Easing function for smooth animations
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function easeOutElastic(t) {
+            const c4 = (2 * Math.PI) / 3;
+            return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = random(-2, 2);
+                this.vy = random(-3, -1);
+                this.alpha = 255;
+                this.size = random(4, 8);
+                this.color = color;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1;
+                this.alpha -= 5;
+            }
+
+            draw() {
+                push();
+                noStroke();
+                fill(this.color[0], this.color[1], this.color[2], this.alpha);
+                circle(this.x, this.y, this.size);
+                pop();
+            }
+
+            isDead() {
+                return this.alpha <= 0;
+            }
+        }
+
+        class Heart {
+            constructor() {
+                this.x = random(width);
+                this.y = height + 50;
+                this.size = random(20, 40);
+                this.speed = random(1.5, 3);
+                this.wobble = random(TWO_PI);
+                this.wobbleSpeed = random(0.03, 0.06);
+                this.rotation = random(-0.3, 0.3);
+            }
+
+            update() {
+                this.y -= this.speed;
+                this.wobble += this.wobbleSpeed;
+            }
+
+            draw() {
+                push();
+                translate(this.x + sin(this.wobble) * 20, this.y);
+                rotate(this.rotation + sin(this.wobble) * 0.2);
+
+                fill(255, 182, 193);
+                noStroke();
+
+                // Draw heart shape
+                beginShape();
+                for (let a = 0; a < TWO_PI; a += 0.1) {
+                    let x = this.size * 16 * pow(sin(a), 3);
+                    let y = -this.size * (13 * cos(a) - 5 * cos(2 * a) - 2 * cos(3 * a) - cos(4 * a));
+                    vertex(x / 16, y / 16);
+                }
+                endShape(CLOSE);
+
+                pop();
+            }
+
+            isDead() {
+                return this.y < -50;
+            }
+        }
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            smooth();
+        }
+
+        function draw() {
+            if (animState.scene === 1) {
+                drawScene1();
+            } else {
+                drawScene2();
+            }
+
+            // Update animation time
+            animState.time += deltaTime;
+
+            // Scene 1 logic
+            if (animState.scene === 1) {
+                if (animState.time < 2000) {
+                    animState.udonProgress = easeInOutCubic(animState.time / 2000);
+                } else {
+                    animState.udonProgress = 1;
+                }
+
+                if (animState.time > 1800) {
+                    animState.speechAlpha = min(255, (animState.time - 1800) / 600 * 255);
+                }
+
+                // Transition to scene 2
+                if (animState.time > 5500) {
+                    animState.scene = 2;
+                    animState.time = 0;
+                }
+            }
+
+            // Scene 2 logic
+            if (animState.scene === 2) {
+                animState.messageScale = min(1, easeOutElastic(animState.time / 1500));
+
+                // Generate hearts
+                if (frameCount % 15 === 0) {
+                    animState.hearts.push(new Heart());
+                }
+
+                // Update and remove hearts
+                animState.hearts = animState.hearts.filter(h => {
+                    h.update();
+                    return !h.isDead();
+                });
+            }
+
+            // Update particles
+            animState.particles = animState.particles.filter(p => {
+                p.update();
+                return !p.isDead();
+            });
+        }
+
+        function drawScene1() {
+            // Sky gradient
+            setGradient(0, 0, width, height * 0.75, color(135, 206, 235), color(176, 224, 230));
+
+            // Grass
+            fill(107, 142, 35);
+            noStroke();
+            rect(0, height * 0.75, width, height * 0.25);
+
+            // Add grass texture
+            for (let i = 0; i < 50; i++) {
+                let x = random(width);
+                let y = height * 0.75 + random(height * 0.25);
+                stroke(85, 107, 47, 100);
+                strokeWeight(2);
+                line(x, y, x, y - random(5, 15));
+            }
+
+            // Draw willow tree
+            let treeX = width / 2;
+            let treeY = height * 0.75;
+            drawWillowTree(treeX, treeY);
+
+            // Character positions
+            let boyX = width / 2 - 180;
+            let boyY = height * 0.75 + 60;
+            let girlX = width / 2 + 180;
+            let girlY = height * 0.75 + 60;
+
+            // Draw characters
+            drawBoy(boyX, boyY);
+            drawGirl(girlX, girlY);
+
+            // Animated udon bowl
+            let udonStartX = boyX + 60;
+            let udonEndX = girlX - 60;
+            let udonX = lerp(udonStartX, udonEndX, animState.udonProgress);
+            let udonY = boyY - 100 - abs(sin(animState.udonProgress * PI)) * 40;
+
+            drawUdonBowl(udonX, udonY, 1 + sin(animState.time / 200) * 0.05);
+
+            // Speech bubble
+            if (animState.speechAlpha > 0) {
+                drawSpeechBubble(width / 2, height * 0.25, "Happy Birthday, here is a bowl of udon.", animState.speechAlpha);
+            }
+
+            // Draw particles
+            animState.particles.forEach(p => p.draw());
+        }
+
+        function drawScene2() {
+            // Gradient background
+            setGradient(0, 0, width, height, color(255, 182, 193), color(255, 228, 225));
+
+            // Update and draw hearts
+            animState.hearts.forEach(h => {
+                h.draw();
+            });
+
+            // Birthday message
+            if (animState.messageScale > 0) {
+                push();
+                translate(width / 2, height / 2 - 50);
+                scale(animState.messageScale);
+
+                // Add glow effect
+                drawingContext.shadowBlur = 20;
+                drawingContext.shadowColor = 'rgba(255, 20, 147, 0.5)';
+
+                // Main text
+                textAlign(CENTER, CENTER);
+                textStyle(BOLD);
+
+                fill(255, 20, 147);
+                textSize(80);
+                text('HAPPY 20th BIRTHDAY', 0, -20);
+
+                fill(255, 105, 180);
+                textSize(65);
+                text('BEAUTIFUL!', 0, 60);
+
+                drawingContext.shadowBlur = 0;
+                pop();
+
+                // Add sparkles
+                if (frameCount % 5 === 0 && animState.messageScale > 0.8) {
+                    for (let i = 0; i < 3; i++) {
+                        animState.particles.push(new Particle(
+                            width / 2 + random(-300, 300),
+                            height / 2 + random(-100, 100),
+                            [255, 215, 0]
+                        ));
+                    }
+                }
+            }
+
+            // Draw particles
+            animState.particles.forEach(p => p.draw());
+        }
+
+        function drawWillowTree(x, y) {
+            // Trunk
+            fill(101, 67, 33);
+            noStroke();
+            rect(x - 30, y - 200, 60, 200, 10);
+
+            // Add trunk texture
+            stroke(80, 50, 20, 50);
+            strokeWeight(2);
+            for (let i = 0; i < 8; i++) {
+                let ty = y - 180 + i * 25;
+                line(x - 25, ty, x - 20, ty + 15);
+                line(x + 20, ty + 10, x + 25, ty + 25);
+            }
+
+            // Drooping branches
+            noFill();
+            strokeWeight(4);
+
+            for (let i = 0; i < 25; i++) {
+                let offsetX = (i - 12) * 25;
+                let branchX = x + offsetX;
+
+                stroke(107, 142, 35, 200);
+
+                beginShape();
+                for (let j = 0; j < 20; j++) {
+                    let curveY = y - 200 + j * 12;
+                    let curveX = branchX + sin(j * 0.3 + animState.time / 1000) * 15;
+                    curveVertex(curveX, curveY);
+                }
+                endShape();
+
+                // Add leaves
+                for (let j = 0; j < 20; j += 3) {
+                    let leafY = y - 200 + j * 12;
+                    let leafX = branchX + sin(j * 0.3 + animState.time / 1000) * 15;
+
+                    fill(107, 142, 35, 150);
+                    noStroke();
+                    ellipse(leafX + random(-5, 5), leafY, random(8, 15), random(4, 8));
+                }
+            }
+
+            // Main canopy
+            fill(107, 142, 35, 200);
+            noStroke();
+            ellipse(x, y - 220, 350, 160);
+
+            // Canopy details
+            fill(85, 107, 47, 150);
+            ellipse(x - 80, y - 210, 120, 80);
+            ellipse(x + 90, y - 215, 130, 85);
+            ellipse(x, y - 240, 100, 60);
+        }
+
+        function drawBoy(x, y) {
+            push();
+
+            // Shadow
+            fill(0, 0, 0, 30);
+            noStroke();
+            ellipse(x, y + 130, 60, 15);
+
+            // Legs (khaki pants)
+            fill(195, 176, 145);
+            stroke(150, 130, 100);
+            strokeWeight(2);
+            rect(x - 30, y + 50, 25, 70, 5);
+            rect(x + 5, y + 50, 25, 70, 5);
+
+            // Shoes
+            fill(60, 40, 20);
+            ellipse(x - 17, y + 125, 30, 15);
+            ellipse(x + 17, y + 125, 30, 15);
+
+            // Torso (Navy quarterzip)
+            fill(25, 25, 112);
+            stroke(15, 15, 80);
+            strokeWeight(2);
+            rect(x - 40, y - 40, 80, 90, 10);
+
+            // Zipper detail
+            stroke(200, 200, 200);
+            strokeWeight(3);
+            line(x, y - 35, x, y + 10);
+
+            // Collar
+            fill(30, 30, 120);
+            noStroke();
+            rect(x - 15, y - 42, 30, 8);
+
+            // Arms
+            fill(25, 25, 112);
+            stroke(15, 15, 80);
+            strokeWeight(2);
+
+            // Left arm (extended with udon)
+            push();
+            translate(x - 40, y - 20);
+            rotate(-0.4);
+            rect(-10, 0, 18, 60, 5);
+            pop();
+
+            // Right arm
+            push();
+            translate(x + 40, y - 20);
+            rotate(0.2);
+            rect(-8, 0, 18, 55, 5);
+            pop();
+
+            // Hands (tan skin)
+            fill(210, 180, 140);
+            noStroke();
+            circle(x - 52, y + 30, 22);
+            circle(x + 42, y + 25, 22);
+
+            // Neck
+            fill(210, 180, 140);
+            rect(x - 12, y - 45, 24, 20);
+
+            // Head
+            fill(210, 180, 140);
+            stroke(180, 150, 110);
+            strokeWeight(2);
+            circle(x, y - 70, 65);
+
+            // Ears
+            fill(200, 170, 130);
+            circle(x - 28, y - 70, 18);
+            circle(x + 28, y - 70, 18);
+
+            // Hair (brown, messy style)
+            fill(101, 67, 33);
+            noStroke();
+
+            // Top of head
+            ellipse(x, y - 90, 68, 45);
+
+            // Hair tufts
+            ellipse(x - 20, y - 88, 35, 30);
+            ellipse(x + 18, y - 90, 38, 32);
+            ellipse(x - 5, y - 95, 30, 25);
+
+            // Bangs
+            triangle(x - 15, y - 75, x - 20, y - 55, x - 5, y - 65);
+            triangle(x + 5, y - 78, x, y - 58, x + 15, y - 68);
+
+            // Eyes
+            fill(255);
+            stroke(0);
+            strokeWeight(2);
+            ellipse(x - 12, y - 72, 18, 20);
+            ellipse(x + 12, y - 72, 18, 20);
+
+            fill(70, 50, 30);
+            circle(x - 12, y - 70, 10);
+            circle(x + 12, y - 70, 10);
+
+            fill(0);
+            circle(x - 12, y - 68, 5);
+            circle(x + 12, y - 68, 5);
+
+            // Eyebrows
+            stroke(80, 50, 25);
+            strokeWeight(3);
+            noFill();
+            arc(x - 12, y - 82, 20, 10, PI, TWO_PI);
+            arc(x + 12, y - 82, 20, 10, PI, TWO_PI);
+
+            // Smile
+            stroke(150, 80, 60);
+            strokeWeight(2);
+            noFill();
+            arc(x, y - 55, 25, 20, 0, PI);
+
+            // Nose
+            stroke(180, 150, 110);
+            strokeWeight(2);
+            line(x + 2, y - 65, x + 4, y - 58);
+
+            pop();
+        }
+
+        function drawGirl(x, y) {
+            push();
+
+            // Shadow
+            fill(0, 0, 0, 30);
+            noStroke();
+            ellipse(x, y + 130, 60, 15);
+
+            // Legs
+            fill(210, 180, 140);
+            stroke(180, 150, 110);
+            strokeWeight(2);
+            rect(x - 25, y + 60, 20, 60, 5);
+            rect(x + 5, y + 60, 20, 60, 5);
+
+            // Shoes (simple flats)
+            fill(220, 220, 220);
+            ellipse(x - 15, y + 125, 28, 12);
+            ellipse(x + 15, y + 125, 28, 12);
+
+            // White sundress
+            fill(255, 255, 255);
+            stroke(230, 230, 230);
+            strokeWeight(2);
+
+            // Dress body
+            beginShape();
+            vertex(x - 35, y - 30);
+            vertex(x + 35, y - 30);
+            bezierVertex(x + 40, y, x + 50, y + 40, x + 55, y + 70);
+            vertex(x - 55, y + 70);
+            bezierVertex(x - 50, y + 40, x - 40, y, x - 35, y - 30);
+            endShape(CLOSE);
+
+            // Dress pattern (flowers)
+            fill(255, 182, 193, 100);
+            noStroke();
+            for (let i = 0; i < 6; i++) {
+                let fx = x + random(-40, 40);
+                let fy = y + random(-20, 50);
+                circle(fx, fy, 8);
+            }
+
+            // Straps
+            stroke(240, 240, 240);
+            strokeWeight(8);
+            line(x - 20, y - 30, x - 12, y - 45);
+            line(x + 20, y - 30, x + 12, y - 45);
+
+            // Arms (tan skin)
+            fill(210, 180, 140);
+            stroke(180, 150, 110);
+            strokeWeight(2);
+
+            // Left arm
+            push();
+            translate(x - 45, y - 20);
+            rotate(-0.3);
+            rect(-8, 0, 16, 55, 5);
+            pop();
+
+            // Right arm
+            push();
+            translate(x + 45, y - 20);
+            rotate(0.3);
+            rect(-8, 0, 16, 55, 5);
+            pop();
+
+            // Hands
+            fill(210, 180, 140);
+            noStroke();
+            circle(x - 48, y + 25, 20);
+            circle(x + 48, y + 25, 20);
+
+            // Neck
+            fill(210, 180, 140);
+            rect(x - 10, y - 48, 20, 22);
+
+            // Head
+            fill(210, 180, 140);
+            stroke(180, 150, 110);
+            strokeWeight(2);
+            circle(x, y - 75, 60);
+
+            // Ears
+            fill(200, 170, 130);
+            circle(x - 26, y - 75, 16);
+            circle(x + 26, y - 75, 16);
+
+            // Hair (long black hair)
+            fill(20, 20, 20);
+            noStroke();
+
+            // Top of head
+            ellipse(x, y - 92, 65, 50);
+
+            // Long hair sides
+            ellipse(x - 25, y - 70, 35, 80);
+            ellipse(x + 25, y - 70, 35, 80);
+
+            // Hair behind head
+            ellipse(x, y - 75, 70, 90);
+
+            // Hair on shoulders
+            ellipse(x - 35, y - 20, 30, 50);
+            ellipse(x + 35, y - 20, 30, 50);
+
+            // Hair shine
+            fill(60, 60, 60, 100);
+            ellipse(x - 15, y - 90, 15, 8);
+            ellipse(x + 10, y - 88, 12, 6);
+
+            // Eyes
+            fill(255);
+            stroke(0);
+            strokeWeight(2);
+            ellipse(x - 12, y - 77, 18, 22);
+            ellipse(x + 12, y - 77, 18, 22);
+
+            fill(70, 40, 20);
+            circle(x - 12, y - 75, 11);
+            circle(x + 12, y - 75, 11);
+
+            fill(0);
+            circle(x - 12, y - 73, 6);
+            circle(x + 12, y - 73, 6);
+
+            // Eye sparkle
+            fill(255, 255, 255, 200);
+            circle(x - 10, y - 76, 3);
+            circle(x + 14, y - 76, 3);
+
+            // Eyelashes
+            stroke(0);
+            strokeWeight(2);
+            line(x - 20, y - 80, x - 22, y - 83);
+            line(x - 15, y - 82, x - 16, y - 86);
+            line(x + 20, y - 80, x + 22, y - 83);
+            line(x + 15, y - 82, x + 16, y - 86);
+
+            // Eyebrows
+            stroke(20, 20, 20);
+            strokeWeight(3);
+            noFill();
+            arc(x - 12, y - 87, 22, 10, PI, TWO_PI);
+            arc(x + 12, y - 87, 22, 10, PI, TWO_PI);
+
+            // Smile
+            stroke(200, 100, 100);
+            strokeWeight(2);
+            noFill();
+            arc(x, y - 60, 28, 25, 0, PI);
+
+            // Nose
+            stroke(180, 150, 110);
+            strokeWeight(2);
+            line(x + 2, y - 70, x + 3, y - 63);
+
+            // Blush
+            fill(255, 182, 193, 80);
+            noStroke();
+            ellipse(x - 22, y - 65, 15, 10);
+            ellipse(x + 22, y - 65, 15, 10);
+
+            pop();
+        }
+
+        function drawUdonBowl(x, y, scale) {
+            push();
+            translate(x, y);
+            scale(scale);
+
+            // Bowl shadow
+            fill(0, 0, 0, 30);
+            noStroke();
+            ellipse(0, 15, 85, 20);
+
+            // Bowl (ceramic style)
+            fill(240, 230, 210);
+            stroke(200, 190, 170);
+            strokeWeight(3);
+
+            // Bowl rim
+            ellipse(0, -10, 80, 30);
+
+            // Bowl body
+            beginShape();
+            vertex(-40, -10);
+            bezierVertex(-35, 10, -25, 20, 0, 25);
+            bezierVertex(25, 20, 35, 10, 40, -10);
+            endShape();
+
+            // Bowl pattern
+            stroke(220, 210, 190);
+            strokeWeight(2);
+            noFill();
+            arc(0, 0, 70, 25, 0, PI);
+
+            // Broth
+            fill(210, 180, 140, 220);
+            noStroke();
+            ellipse(0, -8, 70, 25);
+
+            // Noodles (udon)
+            stroke(255, 248, 220);
+            strokeWeight(6);
+            noFill();
+
+            for (let i = 0; i < 4; i++) {
+                let offsetX = (i - 1.5) * 12;
+                bezier(
+                    offsetX - 10, -5,
+                    offsetX - 5, -15,
+                    offsetX + 5, -15,
+                    offsetX + 10, -5
+                );
+            }
+
+            // Green onion garnish
+            fill(34, 139, 34);
+            noStroke();
+            rect(-15, -12, 4, 8);
+            rect(-8, -10, 4, 8);
+            rect(8, -13, 4, 8);
+            rect(15, -11, 4, 8);
+
+            // Chopsticks
+            stroke(160, 120, 80);
+            strokeWeight(3);
+            line(25, -20, 30, 10);
+            line(30, -20, 35, 10);
+
+            // Steam
+            noFill();
+            stroke(200, 200, 200, 100 + sin(animState.time / 200) * 50);
+            strokeWeight(2);
+            for (let i = 0; i < 3; i++) {
+                let steamX = (i - 1) * 15;
+                let offset = sin(animState.time / 300 + i) * 5;
+                bezier(
+                    steamX, -15,
+                    steamX + offset, -25,
+                    steamX - offset, -35,
+                    steamX + offset, -45
+                );
+            }
+
+            pop();
+        }
+
+        function drawSpeechBubble(x, y, text, alpha) {
+            push();
+
+            // Bubble
+            fill(255, 255, 255, alpha);
+            stroke(100, 100, 100, alpha);
+            strokeWeight(3);
+            rect(x - 230, y - 40, 460, 80, 20);
+
+            // Pointer
+            noStroke();
+            fill(255, 255, 255, alpha);
+            triangle(x - 80, y + 40, x - 50, y + 40, x - 65, y + 55);
+
+            // Border for pointer
+            stroke(100, 100, 100, alpha);
+            strokeWeight(3);
+            noFill();
+            line(x - 80, y + 40, x - 65, y + 55);
+            line(x - 65, y + 55, x - 50, y + 40);
+
+            // Text
+            noStroke();
+            fill(50, 50, 50, alpha);
+            textAlign(CENTER, CENTER);
+            textSize(26);
+            textStyle(BOLD);
+            text(text, x, y);
+
+            pop();
+        }
+
+        function setGradient(x, y, w, h, c1, c2) {
+            noFill();
+            for (let i = y; i <= y + h; i++) {
+                let inter = map(i, y, y + h, 0, 1);
+                let c = lerpColor(c1, c2, inter);
+                stroke(c);
+                line(x, i, x + w, i);
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+
+        function restartAnimation() {
+            animState = {
+                scene: 1,
+                time: 0,
+                udonProgress: 0,
+                speechAlpha: 0,
+                messageScale: 0,
+                hearts: [],
+                particles: []
+            };
+        }
+    </script>
+</body>
+</html>
